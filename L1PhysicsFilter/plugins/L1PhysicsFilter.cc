@@ -18,6 +18,11 @@
 #include "FWCore/Utilities/interface/StreamID.h"
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/EventSetup.h"
+#include "DataFormats/L1TGlobal/interface/GlobalObjectMapFwd.h"
+#include "DataFormats/L1TGlobal/interface/GlobalObjectMap.h"
+#include "DataFormats/L1TGlobal/interface/GlobalObjectMapRecord.h"
+#include "DataFormats/L1TGlobal/interface/GlobalObject.h"
+
 // class declaration
 //
 
@@ -37,19 +42,27 @@ private:
   //virtual void analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup);
   virtual bool filter(edm::Event&, const edm::EventSetup&) override;
   //GlobalAlgBlk const *results_;
+  
+  /// InputTag for L1 Global Trigger object maps. This is done per menu. Should be part of Run.
   const edm::EDGetTokenT<GlobalAlgBlkBxCollection> ugt_token_;
-  //  unsigned long long cache_id_;
+    std::vector<int> tVector;
+    std::vector<size_t> triggerVector;
 };
 L1PhysicsFilter::L1PhysicsFilter(const edm::ParameterSet& iConfig):
   hltProcess_(iConfig.getParameter<std::string>("hltProcess")),
-  //results_(nullptr),
-  ugt_token_(consumes<GlobalAlgBlkBxCollection>(iConfig.getParameter<edm::InputTag>("ugtToken")))
-  //cache_id_(0)
+  ugt_token_(consumes<GlobalAlgBlkBxCollection>(iConfig.getParameter<edm::InputTag>("ugtToken"))),
+  tVector(iConfig.getParameter<vector<int>>("TriggerBitsToCheck"))
 {
-
+    for(auto &i : tVector)
+    {
+            triggerVector.push_back(i);
+            std::cout<<"Has trigger bit : "<<i<<"\n";
+    }
 }
+
 void L1PhysicsFilter::beginRun(const edm::Run& run,const edm::EventSetup& setup)
 {
+
 }
 //bool L1PhysicsFilter::filter(edm::Event const &event, edm::EventSetup const &setup) { 
 bool L1PhysicsFilter::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)  {
@@ -63,6 +76,8 @@ bool L1PhysicsFilter::filter(edm::Event& iEvent, const edm::EventSetup& iSetup) 
   //  iSetup.get<L1TUtmTriggerMenuRcd>().get(menu);
   edm::Handle<GlobalAlgBlkBxCollection> ugt;
   iEvent.getByToken(ugt_token_, ugt);
+
+
   const GlobalAlgBlk* L1uGT(nullptr);
     if (ugt.isValid()) {
     L1uGT = &ugt->at(0, 0);
@@ -78,14 +93,16 @@ bool L1PhysicsFilter::filter(edm::Event& iEvent, const edm::EventSetup& iSetup) 
       // // cout<<m_algoDecisionFinal<<endl;
       for(size_t s = 0; s < m_algoDecisionFinal.size(); s++){
 	//   //  cout<<m_algoDecisionFinal[s]<<endl;
-	if(s<458 && m_algoDecisionFinal[s] > 0){
+	if(s<458)
+   for(size_t k=0;k<triggerVector.size();k++) {
+      if( (s== triggerVector[k])  and (m_algoDecisionFinal[s] > 0) ){
 	  passEvents = true;
-	  //	  cout<<"success"<<" "<<s<<endl; 
-	           break;
-	}
-      }          
-    }
-//   }
+	  cout<<" SUCESS !! for "<<triggerVector[k]<<" "<<s<<endl; 
+	    }
+     }
+        if(passEvents) break;
+    }          
+   }
    return passEvents;
 
 }
